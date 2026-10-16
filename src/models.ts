@@ -3,8 +3,9 @@
 // src/models.ts — 平移自 opencode-codebuddy-oauth；RemoteModel → Pi ProviderModelConfig
 import { fetchJson } from "./fetch-json.js";
 import { AGENT_INTENT, DISCOVERY_TIMEOUT_MS, IDE_NAME, IDE_TYPE, IDE_VERSION, APP_VERSION, ENV_ID, PRODUCT } from "./config.js";
+import { priceLabelForModel, type RemotePromotion } from "./pricing.js";
 
-export interface RemoteModel { id:string; name:string; maxInputTokens?:number; maxOutputTokens?:number; maxAllowedSize?:number; supportsToolCall?:boolean; supportsImages?:boolean; supportsReasoning?:boolean; disabledMultimodal?:boolean; reasoning?:{ effort?:string; defaultEffort?:string; supportedEfforts?:string[] }; }
+export interface RemoteModel { id:string; name:string; maxInputTokens?:number; maxOutputTokens?:number; maxAllowedSize?:number; supportsToolCall?:boolean; supportsImages?:boolean; supportsReasoning?:boolean; disabledMultimodal?:boolean; credits?:string; reasoning?:{ effort?:string; defaultEffort?:string; supportedEfforts?:string[] }; }
 export const DEFAULT_MODEL: RemoteModel = { id:"auto", name:"Auto", maxInputTokens:168000, maxOutputTokens:32000, supportsToolCall:true };
 
 // 与 Pi 类型定义匹配的接口
@@ -39,12 +40,15 @@ export interface PiModelConfig {
   };
 }
 
-export interface RemoteConfigResponse { code:number; data?:{ agents?:Array<{name:string; models?:string[]}>; models?:RemoteModel[] } }
-export async function fetchRemoteModels(
+export interface RemoteConfigResponse { code:number; data?:{ agents?:Array<{name:string; models?:string[]}>; models?:RemoteModel[]; modelPromotions?:RemotePromotion[] } }
+
+/** /v3/config 的模型列表 + 促销信息（促销按时段动态生效，随模型一起缓存/刷新） */
+export interface RemoteConfig { models: RemoteModel[]; promotions: RemotePromotion[] }
+export async function fetchRemoteConfig(
   accessToken: string,
   server: { url: string; domain: string },
   signal?: AbortSignal,
-): Promise<RemoteModel[]> {
+): Promise<RemoteConfig> {
   const headers: Record<string,string> = {
     Accept: "application/json, text/plain, */*",
     "Content-Type": "application/json",
@@ -65,18 +69,20 @@ export async function fetchRemoteModels(
       e.status = res.status;
       throw e;
     }
-    return [];
+    return { models: [], promotions: [] };
   }
   const body = res.data;
-  if (!body || body.code !== 0 || !body.data) return [];
+  if (!body || body.code !== 0 || !body.data) return { models: [], promotions: [] };
   const allModels = body.data.models || [];
+  const promotions = body.data.modelPromotions || [];
   const modelMap = new Map(allModels.map((m) => [m.id, m]));
   const craftAgent = (body.data.agents || []).find((a) => a.name === AGENT_INTENT);
   const craftIds = craftAgent?.models || [];
-  if (craftIds.length === 0) return [DEFAULT_MODEL];
-  return craftIds
+  if (craftIds.length === 0) return { models: [DEFAULT_MODEL], promotions };
+  const models = craftIds
     .map((id) => modelMap.get(id))
     .filter((m): m is RemoteModel => m !== undefined && m.supportsToolCall !== false);
+  return { models, promotions };
 }
 
 const DEFAULT_CONTEXT = 131_072;
@@ -99,13 +105,16 @@ export function modelSupportsImages(m: RemoteModel): boolean {
   return flag && !m.disabledMultimodal;
 }
 
-/** RemoteModel → Pi ProviderModelConfig 所需字段 */
-export function remoteModelToPi(m: RemoteModel): PiModelConfig {
+/** RemoteModel → Pi ProviderModelConfig 所需字段。
+ *  promotions 传入时把积分价格/当前生效折扣拼进 name（pi 的模型选择器
+ *  详情行只渲染 name，是唯一能展示价格的入口；搜索文本也包含 name）。 */
+export function remoteModelToPi(m: RemoteModel, promotions?: RemotePromotion[]): PiModelConfig {
   const contextWindow = m.maxAllowedSize ?? m.maxInputTokens ?? DEFAULT_CONTEXT;
   const maxTokens = m.maxOutputTokens ?? DEFAULT_MAX_TOKENS;
+  const priceLabel = priceLabelForModel(m.credits, promotions, m.id);
   const cfg: PiModelConfig = {
     id: m.id,
-    name: m.name,
+    name: priceLabel ? `${m.name} · ${priceLabel}` : m.name,
     reasoning: m.supportsReasoning !== false && detectThinking(m.id),
     input: modelSupportsImages(m) ? ["text", "image"] : ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -151,18 +160,18 @@ export function remoteModelToPi(m: RemoteModel): PiModelConfig {
 }
 
 export class DiscoveryCache {
-  private data: RemoteModel[] | null = null;
+  private data: RemoteConfig | null = null;
   private fetchedAt = 0;
-  private inflight: Promise<RemoteModel[]> | null = null;
-  private readonly fetchFn: (token: string, signal?: AbortSignal) => Promise<RemoteModel[]>;
-  constructor(private opts: { ttlMs:number; fetchFn: (token: string, signal?: AbortSignal)=>Promise<RemoteModel[]> }) { this.fetchFn = opts.fetchFn; }
-  async get(token:string, { signal }: { signal?:AbortSignal }): Promise<RemoteModel[]> {
+  private inflight: Promise<RemoteConfig> | null = null;
+  private readonly fetchFn: (token: string, signal?: AbortSignal) => Promise<RemoteConfig>;
+  constructor(private opts: { ttlMs:number; fetchFn: (token: string, signal?: AbortSignal)=>Promise<RemoteConfig> }) { this.fetchFn = opts.fetchFn; }
+  async get(token:string, { signal }: { signal?:AbortSignal }): Promise<RemoteConfig> {
     const now = Date.now();
     if (this.data && (now - this.fetchedAt) < this.opts.ttlMs) return this.data;
     if (this.inflight) return this.inflight;
     this.inflight = this.fetchFn(token, signal).then(d => { this.data = d; this.fetchedAt = Date.now(); return d; }).catch(e => {
       if ((e as any)?.status === 401 || (e as any)?.status === 403) throw e;
-      if (!this.data) { this.data = [DEFAULT_MODEL]; this.fetchedAt = now; return this.data; }
+      if (!this.data) { this.data = { models: [DEFAULT_MODEL], promotions: [] }; this.fetchedAt = now; return this.data; }
       return this.data;
     }).finally(() => { this.inflight = null; });
     if (this.data) { this.inflight.catch(() => {}); return this.data; }

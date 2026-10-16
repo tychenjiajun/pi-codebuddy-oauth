@@ -35,13 +35,15 @@ describe("model-cache", () => {
     await expect(readCachedConfig()).resolves.toBeUndefined();
   });
 
-  it("写入后可原样读回原始 RemoteModel 字段（供启动时重新映射）", async () => {
-    await writeCachedConfig([remote("hy4-preview", { maxInputTokens: 1000000, maxOutputTokens: 64000, supportsImages: true })]);
+  it("写入后可原样读回（含促销）", async () => {
+    const promo = { kind: "discount", modelIds: ["hy3"], discount: { factor: 0 } };
+    await writeCachedConfig({ models: [remote("hy4-preview", { maxInputTokens: 1000000, maxOutputTokens: 64000, credits: "x0.29" })], promotions: [promo] });
     const got = await readCachedConfig();
-    expect(got).toHaveLength(1);
-    expect(got![0]!.id).toBe("hy4-preview");
-    expect(got![0]!.maxInputTokens).toBe(1000000);
-    expect(got![0]!.supportsImages).toBe(true);
+    expect(got?.models).toHaveLength(1);
+    expect(got?.models[0]!.id).toBe("hy4-preview");
+    expect(got?.models[0]!.maxInputTokens).toBe(1000000);
+    expect(got?.models[0]!.credits).toBe("x0.29");
+    expect(got?.promotions).toEqual([promo]);
   });
 
   it("v1 旧格式（PiModelConfig[]）被废弃，返回 undefined", async () => {
@@ -56,9 +58,9 @@ describe("model-cache", () => {
   });
 
   it("空 models 不写盘（避免用空列表覆盖有效缓存）", async () => {
-    await writeCachedConfig([remote("auto")]);
-    await writeCachedConfig([]);
-    expect(await readCachedConfig()).toHaveLength(1);
+    await writeCachedConfig({ models: [remote("auto")], promotions: [] });
+    await writeCachedConfig({ models: [], promotions: [] });
+    expect((await readCachedConfig())?.models).toHaveLength(1);
   });
 
   it("损坏的 JSON 返回 undefined 而不抛错", async () => {
@@ -77,19 +79,19 @@ describe("model-cache", () => {
     await fs.mkdir(join(tmpHome, ".pi", "agent"), { recursive: true });
     await fs.writeFile(
       cachePath,
-      JSON.stringify({ version: 2, updatedAt: Date.now(), remote: [remote("keep"), { name: "no-id" }, "garbage"] }),
+      JSON.stringify({ version: 2, updatedAt: Date.now(), remote: [remote("keep"), { name: "no-id" }, "garbage"], promotions: [] }),
       "utf8",
     );
     const got = await readCachedConfig();
-    expect(got).toHaveLength(1);
-    expect(got![0]!.id).toBe("keep");
+    expect(got?.models).toHaveLength(1);
+    expect(got?.models[0]!.id).toBe("keep");
   });
 
   it("过期缓存仍作为启动种子返回（有模型好过只有 auto）", async () => {
     await fs.mkdir(join(tmpHome, ".pi", "agent"), { recursive: true });
     const stale = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    await fs.writeFile(cachePath, JSON.stringify({ version: 2, updatedAt: stale, remote: [remote("old")] }), "utf8");
-    expect(await readCachedConfig()).toHaveLength(1);
+    await fs.writeFile(cachePath, JSON.stringify({ version: 2, updatedAt: stale, remote: [remote("old")], promotions: [] }), "utf8");
+    expect((await readCachedConfig())?.models).toHaveLength(1);
   });
 
   it("写入失败不抛出（只读环境下不阻断启动）", async () => {
@@ -98,7 +100,7 @@ describe("model-cache", () => {
     await fs.rm(agentDir, { recursive: true, force: true });
     await fs.mkdir(join(tmpHome, ".pi"), { recursive: true });
     await fs.writeFile(agentDir, "not-a-dir", "utf8");
-    await expect(writeCachedConfig([remote("x")])).resolves.toBeUndefined();
+    await expect(writeCachedConfig({ models: [remote("x")], promotions: [] })).resolves.toBeUndefined();
     await fs.rm(agentDir, { force: true });
   });
 });
