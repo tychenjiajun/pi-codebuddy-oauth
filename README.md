@@ -1,6 +1,6 @@
 # pi-codebuddy-oauth
 
-[![npm version](https://img.shields.io/npm/v/pi-codebuddy-oauth.svg)](https://www.npmjs.com/package/pi-codebuddy-oauth)
+[![npm version](https://img.shields.io/npm/v/@tychenjiajun/pi-codebuddy-oauth.svg)](https://www.npmjs.com/package/@tychenjiajun/pi-codebuddy-oauth)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 为 [CodeBuddy](https://www.codebuddy.cn)（腾讯 IOA 编程助手）提供 [Pi](https://github.com/earendil-works/pi) 扩展，把 CodeBuddy 作为 **OpenAI 兼容 HTTP provider** 接入 Pi。
@@ -20,7 +20,7 @@
 ## 安装
 
 ```bash
-pi install npm:pi-codebuddy-oauth
+pi install npm:@tychenjiajun/pi-codebuddy-oauth
 ```
 
 或本地路径开发调试：

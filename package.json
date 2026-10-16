@@ -1,6 +1,6 @@
 {
-  "name": "pi-codebuddy-oauth",
-  "version": "0.1.5",
+  "name": "@tychenjiajun/pi-codebuddy-oauth",
+  "version": "0.1.6",
   "description": "Pi extension that registers CodeBuddy (IOA) as an OpenAI-compatible HTTP provider with OAuth/API-key auth",
   "license": "MIT",
   "type": "module",
@@ -18,6 +18,10 @@
     "extensions": [
       "./src/index.ts"
     ]
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "keywords": [
     "pi-package",
