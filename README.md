@@ -2,8 +2,19 @@
 
 [![npm version](https://img.shields.io/npm/v/@tychenjiajun/pi-codebuddy-oauth.svg)](https://www.npmjs.com/package/@tychenjiajun/pi-codebuddy-oauth)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![pi-package](https://img.shields.io/badge/pi-package-purple.svg)](https://pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth)
+
+![pi-codebuddy-oauth preview](https://raw.githubusercontent.com/tychenjiajun/pi-codebuddy-oauth/main/assets/preview.png)
 
 为 [CodeBuddy](https://www.codebuddy.cn)（腾讯 IOA 编程助手）提供 [Pi](https://github.com/earendil-works/pi) 扩展，把 CodeBuddy 作为 **OpenAI 兼容 HTTP provider** 接入 Pi。
+
+**Pi extension** that registers CodeBuddy (Tencent IOA) as an OpenAI-compatible HTTP provider in pi — OAuth login or API-key auth, no CLI subprocess.
+
+```bash
+pi install npm:@tychenjiajun/pi-codebuddy-oauth
+```
+
+📦 画廊页面：[pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth](https://pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth) · 扩展文档：[pi.dev/docs/latest/packages](https://pi.dev/docs/latest/packages)
 
 与 [pi-codebuddy-sdk](https://github.com/RealAlexandreAI/pi-codebuddy-sdk)（spawn `codebuddy` CLI 子进程 + MCP bridge）不同，本扩展走**轻量 HTTP 直连**（`/v2/chat/completions`）：协议栈复用 pi-ai 内置 `openai-completions`，扩展只负责鉴权、模型发现、动态头注入与瞬时故障重试。无 CLI 依赖、无子进程、无会话文件管理。
 
@@ -46,6 +57,8 @@ pi install /path/to/pi-codebuddy-oauth
 ```bash
 export CODEBUDDY_API_KEY=ck_xxx
 ```
+
+![pi-codebuddy-oauth demo](https://raw.githubusercontent.com/tychenjiajun/pi-codebuddy-oauth/main/assets/demo.gif)
 
 ## 环境变量
 
@@ -101,6 +114,24 @@ token 的过期预检与刷新由 Pi 原生托管（`oauth.refreshToken`，5 分
 刻意不写入 `models.json`：codebuddy 是扩展注册的 provider，鉴权由 `auth-fetch` 拦截器注入
 （自定义 `streamSimple`）。在 `models.json` 声明同 id 的原生 provider 会产生 baseUrl/api
 双重定义并绕过拦截器，也会与 pi-model-manager 的跨进程锁相互干扰。
+
+## 常见问题（FAQ）
+
+### 需要先安装 codebuddy CLI 吗？
+
+不需要。本扩展走轻量 HTTP 直连（`/v2/chat/completions`），无 CLI 依赖、无子进程、无会话文件管理，装完 `pi` 重启即可用。
+
+### pi-codebuddy-oauth 和 pi-codebuddy-sdk 有什么区别？
+
+pi-codebuddy-sdk 通过 spawn `codebuddy` CLI 子进程 + MCP bridge 接入；本扩展是纯 HTTP 直连，鉴权由 `auth-fetch` 拦截器注入，协议栈复用 pi-ai 内置 `openai-completions`。
+
+### 如何登录 CodeBuddy？OAuth 失败怎么办？
+
+推荐 `/login codebuddy` 走浏览器 OAuth；不想开浏览器就设置 `CODEBUDDY_API_KEY=ck_xxx`。OAuth 拿不到 token 时可切 API Key 模式，或用 `CODEBUDDY_NETWORK` 切换国内/国际端点。
+
+### 这个包在哪里查看/下载？
+
+pi.dev 画廊：[pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth](https://pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth)；npm：[@tychenjiajun/pi-codebuddy-oauth](https://www.npmjs.com/package/@tychenjiajun/pi-codebuddy-oauth)。打包方式见 [pi 扩展文档](https://pi.dev/docs/latest/packages)。
 
 ## 开发
 
