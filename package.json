@@ -1,12 +1,14 @@
 {
   "name": "@tychenjiajun/pi-codebuddy-oauth",
-  "version": "0.1.7",
-  "description": "Pi extension that registers CodeBuddy (IOA) as an OpenAI-compatible HTTP provider with OAuth/API-key auth",
+  "version": "0.1.8",
+  "description": "Pi extension that registers CodeBuddy (IOA, Tencent) as an OpenAI-compatible HTTP provider with OAuth login or API-key auth, auto model discovery, and retries",
+  "homepage": "https://pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth",
   "license": "MIT",
   "type": "module",
   "main": "src/index.ts",
   "files": [
     "src",
+    "assets",
     "README.md",
     "LICENSE"
   ],
@@ -17,7 +19,9 @@
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/tychenjiajun/pi-codebuddy-oauth/main/assets/preview.png",
+    "video": "https://raw.githubusercontent.com/tychenjiajun/pi-codebuddy-oauth/main/assets/demo.mp4"
   },
   "publishConfig": {
     "access": "public",
@@ -25,17 +29,23 @@
   },
   "keywords": [
     "pi-package",
+    "pi-extension",
     "pi",
     "pi-coding-agent",
     "extension",
     "codebuddy",
     "ioa",
     "oauth",
-    "provider"
+    "provider",
+    "openai-compatible",
+    "api-key"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SoulChildTc/pi-codebuddy-oauth.git"
+    "url": "git+https://github.com/tychenjiajun/pi-codebuddy-oauth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tychenjiajun/pi-codebuddy-oauth/issues"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=1.2.0",
