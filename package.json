@@ -1,6 +1,6 @@
 {
   "name": "@tychenjiajun/pi-codebuddy-oauth",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Pi extension that registers CodeBuddy (IOA, Tencent) as an OpenAI-compatible HTTP provider with OAuth login or API-key auth, auto model discovery, and retries",
   "homepage": "https://pi.dev/packages/@tychenjiajun/pi-codebuddy-oauth",
   "license": "MIT",
